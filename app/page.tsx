@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import Grid from "../components/Grid";
-import { getDailyWord } from "../utils/word";
+import Grid from "@/components/Grid";
+import { getDailyWord } from "@/utils/word";
+import Keyboard from "@/components/Keyboard";
 
 export default function Home() {
     const [solution, setSolution] = useState("");
@@ -15,12 +16,16 @@ export default function Home() {
     }>({});
     const [maxTurns, setMaxTurns] = useState(6);
     const gridRef = useRef<HTMLDivElement>(null);
+    const [usedLetters, setUsedLetters] = useState<{ [key: string]: string }>(
+        {}
+    );
 
     const handleNextWord = () => {
         setWordDay((prev) => prev + 1);
         setGuesses([]);
         setCurrentGuess("");
         setGameOver(false);
+        setUsedLetters({}); // Add this line to reset the keyboard colors
     };
 
     const handleSolveOneLetter = () => {
@@ -70,6 +75,25 @@ export default function Home() {
         gridRef.current?.focus();
     };
 
+    const updateLetterStates = (guess: string) => {
+        const newStates: { [key: string]: string } = { ...usedLetters };
+
+        guess.split("").forEach((letter, i) => {
+            if (letter === solution[i]) {
+                newStates[letter] = "bg-green-500";
+            } else if (
+                solution.includes(letter) &&
+                newStates[letter] !== "bg-green-500"
+            ) {
+                newStates[letter] = "bg-yellow-500";
+            } else if (!solution.includes(letter)) {
+                newStates[letter] = "bg-gray-500";
+            }
+        });
+
+        setUsedLetters(newStates);
+    };
+
     useEffect(() => {
         const loadSolution = async () => {
             const word = await getDailyWord(wordDay);
@@ -87,6 +111,7 @@ export default function Home() {
                 // Check win condition before adding guess
                 if (currentGuess === solution) {
                     setGuesses((prev) => [...prev, currentGuess]);
+                    updateLetterStates(currentGuess);
                     setCurrentGuess("");
                     setGameOver(true);
                     return;
@@ -95,6 +120,7 @@ export default function Home() {
                 // Check if this would be the last turn
                 if (guesses.length >= maxTurns - 1) {
                     setGuesses((prev) => [...prev, currentGuess]);
+                    updateLetterStates(currentGuess);
                     setCurrentGuess("");
                     setGameOver(true);
                     return;
@@ -102,6 +128,7 @@ export default function Home() {
 
                 // Normal turn
                 setGuesses((prev) => [...prev, currentGuess]);
+                updateLetterStates(currentGuess);
                 setCurrentGuess("");
             } else if (!gameOver) {
                 // Only check gameOver for typing
@@ -118,7 +145,26 @@ export default function Home() {
 
         window.addEventListener("keydown", handleKeydown);
         return () => window.removeEventListener("keydown", handleKeydown);
-    }, [currentGuess, guesses, solution, gameOver, maxTurns]);
+    }, [currentGuess, guesses, solution, gameOver, maxTurns, usedLetters]);
+
+    const handleKeyPress = (key: string) => {
+        if (gameOver) return;
+
+        if (key === "Enter") {
+            if (currentGuess.length === 5) {
+                const event = new KeyboardEvent("keydown", { key: "Enter" });
+                window.dispatchEvent(event);
+            }
+        } else if (key === "Backspace") {
+            const event = new KeyboardEvent("keydown", { key: "Backspace" });
+            window.dispatchEvent(event);
+        } else if (currentGuess.length < 5) {
+            const event = new KeyboardEvent("keydown", {
+                key: key.toLowerCase(),
+            });
+            window.dispatchEvent(event);
+        }
+    };
 
     return (
         <div className="flex min-h-screen p-8">
@@ -156,6 +202,10 @@ export default function Home() {
                         )}
                     </div>
                 )}
+                <Keyboard
+                    usedLetters={usedLetters}
+                    onKeyPress={handleKeyPress}
+                />
             </div>
 
             <div className="w-64 bg-gray-100 p-4 rounded-lg ml-8">

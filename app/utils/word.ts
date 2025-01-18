@@ -1,4 +1,4 @@
-import { WordleResponse } from "../types/word";
+import { WordleResponse } from "@/types/word";
 
 function GetFomattedDate(date: Date): string {
     const yyyy = date.getFullYear();
